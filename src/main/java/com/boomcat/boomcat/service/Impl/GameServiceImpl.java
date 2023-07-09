@@ -550,6 +550,7 @@ public class GameServiceImpl implements GameService {
             //special turn
             if(times>=1){
                 System.out.println("现在是甩锅阶段x"+times);
+                preNumber=times;
                 times--;
             }else{
                 System.out.println("现在是顺逆牌序");
