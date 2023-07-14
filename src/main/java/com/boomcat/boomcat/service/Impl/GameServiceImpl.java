@@ -5,39 +5,45 @@ import com.boomcat.boomcat.domain.Game;
 import com.boomcat.boomcat.domain.User;
 import com.boomcat.boomcat.service.GameService;
 import com.boomcat.boomcat.util.CardUtil;
+import org.springframework.stereotype.Service;
 
 import java.util.*;
 
 import static java.lang.Math.random;
-import static java.lang.Math.toRadians;
 
 //合作模式就是提示机制不一样 没有冲突
-
+@Service
 public class GameServiceImpl implements GameService {
 
-    CardUtil cardUtil;
     /**
-     * 随机分牌
+     * 初始化
      * @param type
      * @param users
-     * @param cards  initial fixed number cards
+     * @return
      */
     @Override
-    public Game startGame(String type, ArrayList<User> users, ArrayList<Card> cards,int boomNumber,int initHoldNumber) {
+    public Game initGame(String type, ArrayList<User> users) {
+        System.out.println(type);
         //one totally contains "initHoldNumber" cards including the 'REMOVE' card
-
+        int initHoldNumber=5;
+        //booms will be changed by different gameType
+        int boomNumber = 0;
         Game game = new Game();
         //clockwise default
         game.setClockwise(true);
-
+        //new the cards
+        int playerNumber= users.size();
+        ArrayList<Card> cards = CardUtil.generate(playerNumber);
         int cnt=0;
         //specify the type of game
         //when initialing, there is no 'BOOM' cards and then add them after finishing
         switch (type) {
             case "1v1.."->{
+                boomNumber=4;
                 //everyone adds 5 cards
                 for (User user: users) {
                     //everyone has a 'REMOVE' firstly
+                    user.setCards(new ArrayList<>());
                     user.getCards().add(Card.REMOVE);
                     for (int i = 0; i < initHoldNumber-1; i++){
                             user.getCards().add(cards.get(cnt));
@@ -46,7 +52,8 @@ public class GameServiceImpl implements GameService {
                 }
                 //show result for user
                 for (int i = 0; i < users.size(); i++){
-                    System.out.println("第"+(i+1)+"个用户的牌面为：");
+//                    System.out.println("第"+(i+1)+"个用户的牌面为：");
+                    System.out.println("用户”"+users.get(i).getNickname()+"“的牌面为：");
                     System.out.println(users.get(i).getCards());
                     System.out.println("牌面重复率为");
                     Set<Card>cardSet=new HashSet<>();
@@ -146,7 +153,6 @@ public class GameServiceImpl implements GameService {
         }
     };
 
-
     public void play(Game game){
         Integer aliveNumber = game.getAliveNumber();
         Integer front = game.getFront();
@@ -202,27 +208,29 @@ public class GameServiceImpl implements GameService {
         }
     }
     public static void main(String[] args) {
+        //how many people to play
         int playerNumber=2;
-
+        //make users
         ArrayList<User>users = new ArrayList<>();
         for (int i = 0; i <playerNumber;i++ ) {
             User user = new User("用户"+(i+1));
             user.setCards(new ArrayList<>());
             users.add(user);
         }
-        //how many players
-        ArrayList<Card> cards = CardUtil.generate(playerNumber);
+        //makes cards
+//        ArrayList<Card> cards = CardUtil.generate(playerNumber);
         System.out.println("本场是"+playerNumber+"人局");
-        System.out.println("总牌数："+cards.size());
+//        System.out.println("总牌数："+cards.size());
         GameService gameService = new GameServiceImpl();
-        Game game = gameService.startGame("1v1..", users, cards, 3, 5);
+        //makes game
+        final int boomNumber=3;
+        final int initHoldNumber=5;
+        Game game = gameService.initGame("1v1..", users);
         System.out.println("本局游戏参数："+game);
-
-        //go to gaming
-
+        //go to game
         Integer front = game.getFront();
         Integer tail = game.getTail();
-        cards = game.getCards();
+        ArrayList<Card> cards = game.getCards();
         users= game.getParticipants();
         boolean clockwise = game.isClockwise();
         int userNumber=users.size();
@@ -230,21 +238,19 @@ public class GameServiceImpl implements GameService {
         //random user to start the game
         int currIndex=(int)(random()*userNumber);
         System.out.println("游戏从"+users.get(currIndex).getNickname()+"开始");
-        //for assign
+        //for assign :shuai guo
         int times=0;
-
-        //normal turn
+        //normal turn for clockwise
         boolean normalTurn=true;
         //for special turn
         int preNumber=0;
-        //total times
+        //total times in game
         int totalCnt=0;
-
         //to imitate real persons
         Scanner scanner = new Scanner(System.in);
-
         //latest used card
         Card latestUsedCard = null;
+        //when there is more than one user being alive
         while(game.getAliveNumber()>1){
             User currentUser = users.get(currIndex);
             if (!currentUser.isAlive()) {
@@ -426,7 +432,6 @@ public class GameServiceImpl implements GameService {
                             times+=1;
                         }
                         normalTurn=false;
-                        System.out.println("当前叠加次数为"+preNumber);
                         latestUsedCard=Card.ASSIGN;
                     }
                     case ASSIGNTWICE -> {
@@ -445,7 +450,6 @@ public class GameServiceImpl implements GameService {
                             preNumber=2;
                             times+=2;
                         }
-                        System.out.println("当前叠加次数为"+preNumber);
                         normalTurn=false;
                         latestUsedCard=Card.ASSIGNTWICE;
                     }
@@ -545,11 +549,12 @@ public class GameServiceImpl implements GameService {
                         latestUsedCard=Card.EXCHANGE;
                     }
                 }
-                System.out.println("您现在的牌面为"+yourCard);
+                System.out.println("您现在的牌面变为"+yourCard);
             }
             //special turn
             if(times>=1){
-                System.out.println("现在是甩锅阶段x"+times);
+                System.out.println("一轮结束，现在是甩锅阶段x"+times+" 到"+users.get(currIndex).getNickname());
+                System.out.println("");
                 preNumber=times;
                 times--;
             }else{
@@ -563,7 +568,7 @@ public class GameServiceImpl implements GameService {
                 }else{
                     currIndex=(currIndex +userNumber-1)%userNumber;
                 }
-                System.out.println("一轮结束，按序到"+users.get(currIndex).getNickname());
+                System.out.println("您的回合已结束，按序到"+users.get(currIndex).getNickname());
                 System.out.println("");
             }
 
@@ -572,13 +577,7 @@ public class GameServiceImpl implements GameService {
                 break;
             }
         }
-        System.out.println("结束啦，最后的赢家是：");
-        for (int i = 0; i < userNumber;i++) {
-        if(users.get(i).isAlive()){
-            System.out.println(users.get(i).getNickname());
-            break;
-        }
-        }
+        System.out.println("结束啦，最后的赢家是： "+users.get(currIndex).getNickname());
         System.out.println("总回合数"+totalCnt);
         System.out.println("本轮游戏结束，欢迎下次再来");
     }
